@@ -1,0 +1,810 @@
+---
+title: "Exploration des méthodes d'apprentissage semi-supervisées"
+subtitle: "Projet Industriel"
+author: "Yassine LANDA"
+date: "January 21, 2016"
+output: pdf_document
+---
+
+
+\centering
+OCTO Technology  
+École des Mines de Saint-Etienne  
+  
+&nbsp;
+&nbsp;
+&nbsp;
+&nbsp;
+&nbsp;
+&nbsp;
+
+ 
+_Olivier ROUSTANT_ - Tuteur École   
+_Michel LUTZ_ - Tuteur Entreprise  
+
+\raggedright
+\newpage
+\tableofcontents
+
+#Contexte et définition de la problématique:
+
+Les techniques de classification sont régulièrement employés dans une grande variété de domaines d'application. Les exemples incluent les applications des sciences alimentaires où des études sont menées pour établir si des produits sont correctement étiquetés$^{[1]}$  (par exemple, enquêtes botaniques pour identifier les plantes rares$^{[2]}$ ;applications de diagnostic médical pour déterminer si les patients ont une maladie particulière$^{[3]}$). 
+
+Les méthodes de classification ont besoin d'un ensemble de données étiqueté de telle sorte que le nombre de groupes et leurs structure peuvent être déduites. La tâche est de classer les observations non marquées dans les groupes corrects. Traditionnellement, une règle de classification est développée en utilisant les données entièrement marquées qui peuvent ensuite être utilisés pour classer toutes les nouvelles données non marqués. Des examens approfondis des méthodes de classification comprennent Ripley (1996)$^{[4]}$ et McLachlan (1992)$^{[5]}$.
+
+Les méthodes de classification semi-supervisée utilisent à la fois les données étiquetés et non étiquetés pour développer un classificateur pour les observations non étiquetés. Ces méthodes exploitent l'idée que, même si les appartenances à des groupes de données non labellisées ne sont pas connus, ces données portent des informations importantes sur les paramètres de groupe$^{[6]}$. Ces procédés fournissent un cadre pour mettre à jour les règles de classification en utilisant les observations non marquées, de sorte qu'une classification plus précise peux être obtenue. Un certain nombre de méthodes de classification semi-supervisés ont été développées y compris les méthodes à base de modèles$^{[7]}$ et de machines learning$^[8]$. Des revues détaillées de la classification semi-supervisé comprennent Chapelle et al. (2006)$^{[6]}$ et Zhu et Goldberg (2009)$^{[9]}$.
+
+Les problèmes liés à l'apprentissage semi-supervisé sont d'un immense intérêt pratique pour une large gamme d'applications (la recherche d'images, la génomique, l'analyse du langage naturel, et l'analyse de la parole), où les données non labelisées sont abondantes, mais l'obtention des étiquettes de classe est coûteuse ou impossible à obtenir pour le ensemble des données. La question qui est alors posée est: comment les propriétés des données peuvent être utilisées pour améliorer la décision et permettre une classification qui est plus précise que celle qu'on aurait obtenu si on s'était baser sur les données marquées seul.
+
+#Méthodes Generatives:
+
+###Description:
+
+Les approches génératives à l'apprentissage statistique cherchent d'abord à estimer p(x|y), la répartition des points de données appartenant à chaque classe. La probabilité p(y|x) qu'un point x donné a l'étiquette y est alors proportionnelle à p(x|y)p(y) par la règle de Bayes. L'apprentissage semi-supervisé avec des modèles génératifs peut être considérée soit comme une extension de l'apprentissage supervisé (classification ainsi que des informations au sujet de p(x)) ou comme une extension de l'apprentissage non supervisé (regroupement ainsi que certaines étiquettes).
+
+Modèles génératifs supposent que les distributions prennent une forme particulière 
+$p (x|y,\theta )$ paramétrée par le vecteur $\theta$. Si ces hypothèses sont incorrectes, les données non marquées peuvent réellement diminuer la précision de la solution par rapport à ce qui aurait été obtenu à partir de seules données labellisées$^{[10]}$. Cependant, si les hypothèses sont correctes, les données non marqué améliore nécessairement les $performances^{[11]}$ .
+
+Les données non marqués sont distribués selon un mélange de distribution individuelle par classe. Afin de connaître le mélange de distribution à partir des données non marquées, celui-ci doit être identifiable, ie, différents paramètres doivent générer différentes distributions additionnées. Un mélande de distributions gaussiennes sont identifiables et sont couramment utilisés pour les modèles génératifs.
+
+La distribution conjointe paramétré peut être écrite comme  (1): 
+
+$$p (x, y | \theta ) = p (y | \theta ) p (x | y , \theta )$$       
+
+Chaque vecteur de paramètre $\theta$ est associé à une fonction de décision $^{[12]}$:
+$$f_{\theta} (x)  = \operatorname*{arg\,max}_y p(b)    $$  
+
+Le paramètre $\theta$ est alors choisi de tel façon à s'adapter à la fois aux données étiquetés et non étiquetés, pondérés par $\lambda$ :
+$$\operatorname*{arg\,max}_{\theta} (\log p(\left\{x_i, y_i\right\}_{i = 1}^l | \theta) + \lambda \log p(\left\{x_i\right\}_{i=l+1}^{l+u} | \theta))$$                                          
+ Plusieurs algorithmes nous permettent touver le paramètre $\theta$ (estimation efficace du maximum de « X-vraisomblance »):
+
+- EM algorithm (Expectation Maximization, Dempster, Laird, and Rubin 1997[13]), the
+- SEM algorithm (Stochastic EM, Celeux and Diebolt 1985$^{[14]}$).
+- CEM algorithm (Clustering EM, Celeux and Govaert 1992$^{[15]}$)
+
+On détaillera ici que l'algorithme EM, le plus utilisé dans les packages R pour faire de l'apprentissage semi-supervisé.
+
+####Algorithme EM :
+
+**Étape 1 (k=0)**
+Trouver les valeurs initiales pour les estimations des paramètres $\theta$ du modèle. Seules les données marquées ($x_N$, $L_N$) sont utilisés ici avec le M-étape de l'algorithme EM. Ceci est équivalent à effectuer une analyse discriminante basée sur un modèle classique pour obtenir des valeurs de départ pour les paramètres du modèle.
+
+**Étape 2**
+En utilisant les estimations des paramètres actuels $\theta(k)$, calculer les étiquettes inconnus par l'étape E en utilisant l’équation (1).
+
+**Étape 3**
+Combiner les données labellisées ainsi que non labellisées pour calculer de nouvelles estimations des paramètres du modèle, $\theta(k + 1)$ à travers l’Étape M de l'algorithme par la maximisation du log-vraisemblance de toutes les données.
+
+**Étape 4**
+ Vérifiez la convergence du log-vraisemblance en utilisant un critère de convergence.
+
+###Avantages:
+
+- Claires, ont une base probabiliste très bien étudiée.
+- Peuvent être extrêmement efficace, si le modèle correspond au données.
+
+###Inconvénients:
+
+- Souvent il est difficile de vérifier que le modèle est correcte.
+- Locaux maximaux de l'algorithme EM.
+- Les données non labellisées peuvent nuire aux résultat si le modèle génératif est erroné.
+
+###Exemple avec le package "_upclass_":
+Pour illustrer la valeur qu'ont nos données non labellisées, on considère l'exemple suivant. Dans un problème de classification binaire, si on assume que chaque classe a une distrubition Gaussienne, alors on peut utiliser les observations non-labellisées pour estimer les paramètres.
+
+```{r, include = FALSE }
+#Generating 100 points from unit-variance isotropic Gaussians (i.e., from N(mu1 , I))
+library(MASS)
+library(upclass)
+
+n <- 200
+
+mu1 <- rep(-4, 2)
+Sigma <- diag(2)
+X <- mvrnorm(n, mu1, Sigma)
+plot(X,xlim=c(-10,10),ylim=c(-10,10),col="red",pch=1)
+points(mu1[1],mu1[2],col="red",pch=4,lwd=3)
+
+
+#Generating 100 points from unit-variance isotropic Gaussians (i.e., from N(mu2 , I))
+mu2 <- rep(2,2)
+Sigma <- matrix(c(1,0,1,2),ncol=2,nrow = 2)
+Y <- mvrnorm(n, mu2, Sigma)
+
+points(Y,col="blue",pch=2)
+points(mu2[1],mu2[2],col="blue",pch=4,lwd=3)
+
+#Construction labelised data set
+data <- as.data.frame(rbind(X,Y))
+data$label[1:n] <- 1
+data$label[(n+1):(n*2)] <- 2
+data <- as.matrix(data[sample(nrow(data)),])
+cl <- unclass(data[,3])
+
+indtrain <- sort(sample(1:(n*2),10))
+Xtrain <- data[indtrain,1:2]
+cltrain <- cl[indtrain]
+
+indtest <- setdiff(1:(n*2), indtrain)
+Xtest <- data[indtest,1:2]
+cltest <- cl[indtest]
+
+```
+
+```{r,  include = FALSE}
+
+#supervised learning
+supervised = Mclust(Xtrain,cltrain)
+summary(supervised)
+prediction <- predict(supervised, Xtest)
+plot(Xtest,col=prediction$classification)
+
+#semi-supervised learning
+semisupervised <- upclassify(Xtrain, cltrain, Xtest)
+summary(semisupervised)
+semisupervised$Best$modelName    # What is the best model?
+#plot(semisupervised)
+
+#use the prediction of unsupervised on Mclust to draw new gaussians!
+sum(semisupervised$Best$test$cl - cltest)
+clpredicted <- semisupervised$Best$test$cl
+mod = Mclust(rbind(Xtrain,Xtest),rbind(cltrain,clpredicted))
+summary(mod)
+
+```
+
+```{r, ,message=FALSE}
+supervised = Mclust(Xtrain,cltrain)
+semisupervised <- upclassify(Xtrain, cltrain, Xtest)
+```
+
+Le package "_upclass_" (qui est dérivé de "_Mclust_") essayent de trouver les meilleures paramètres des distributions utilisées en maximisant la vraisemblance$^{[23]}$ comme vu plus haut. Il renvoie le meilleur modèle en utilisant le Bayesian Information Criterion (BIC) comme critère de sélection:
+
+$$ BIC = 2log(L) - k log(n)$$
+
+avec:  
+- $L$ la vraisemblance des données  
+- $k$ le nombre de paramètres du modèle estimé  
+- $n$ le nombre des observations  
+
+Sur les figures qui suivent on peux voir les classifications obtenues, ainsi que les densités des distributions, en utilisant  seulement les données labellisées (supervisé) ou l'ensemble des données labellisées et non labellisées (semi-supervisé):
+
+```{r, echo=FALSE,results='hide',message=FALSE,fig.width=8, fig.height=6}
+#comparaison supervised et semi-supervised
+op <- par(mfrow=c(3,2))
+plot(Xtrain,main="données labellisées(a)",col=c("red","blue")[cltrain],xlim=c(-10,10),ylim=c(-10,10),pch=1)
+plot(Xtest,main="données labellisées et non labellisées (b)",col="grey")
+points(Xtrain,col=c("red","blue")[cltrain],xlim=c(-10,10),ylim=c(-10,10),pch=1)
+plot(supervised,main="",what="classification",xlim=c(-10,10),ylim=c(-10,10))
+plot(mod,main="",what="classification",xlim=c(-5,5),ylim=c(-5,5))
+plot(mod,main="modèles appris de (a) ",what="d",xlim=c(-5,5),ylim=c(-5,5))
+plot(supervised,main="modèles appris de (b)",what="d",xlim=c(-5,5),ylim=c(-5,5))
+par(op)
+```
+
+
+#Méthodes d'Auto-apprentissage:
+
+###Description:
+Méthodes d'auto-apprentissage ou Self-training est une technique couramment utilisée pour l'apprentissage semi-supervisé. En Self-Training un classificateur est d'abord entraîné avec la petite quantité de données labellisées. La classificateur est ensuite utilisée pour classer les données non étiquetés. Typiquement les points non étiquetés qui ont la plus grande confiance, calculée à partir des prédictions du classificateur, sont ajoutés à l'ensemble de formation. Le classificateur est re-formé et il est ré-entraîné. Le classificateur utilise ses propres prédictions pour s'améliorer. La procédure est également appelée auto-apprentissage ou _bootstrapping_ (à ne pas confondre avec la procédure statistique avec le même nom). Le modèle génératif et l'approche EM de la méthode précédente (Méthodes Génératives) peuvent être considérés comme un cas particulier de 'soft' Self-Training. On peut imaginer qu'une erreur de classification peut se renforcer et entraîner d'autres erreurs. Certains algorithmes tentent d'éviter cela en enlevant des points non-étiquetés si la confiance de prédiction tombe au-dessous d'un seuil.
+
+Self-Training est un algorithme qui peut marcher en "ad-hoc" sur des algorithmes de classifications déjà existants, ce qui rend leurs analyse assez difficile en général.
+
+###Avantages:
+
+- La méthode d'apprentissage semi-supervisée la plus simple.
+- Une méthode qui peut être utilisée avec des classifieurs (complexes) déjà existants.
+
+###Inconvénients:
+
+- Des erreurs initiales s'auto-renforcent toutes seules.
+- Solutions heuristiques, par exemple enlever l'étiquette d'une instance si sa confiance descend au dessous d'un seuil. On peut rien dire sur la convergence.
+- Mais il y a des cas particuliers où l'algorithme de self-training est équivalent à l'algorithme d'Expectation-Maximization (EM).
+- Il y a aussi des cas particuliers (par exemple., fonctions linéaires) où la solution est connue.
+
+###Exemple avec le package "_DMwR_":
+Dans cette exemple on utilise le classificateur "NaîveBayes" codé dans le package "_e1071_". L'auto-apprentissage est réalisé gâce au package "_DMwR_" écrit par Luis Torgo (http://www.dcc.fc.up.pt/~ltorgo/DataMiningWithR/) sur les données _iris_.
+
+```{r, include = FALSE }
+library(DMwR)
+###################################################
+### Semi-supervised approaches
+###################################################
+
+## Small example with the Iris classification data set
+data(iris)
+ 
+## Dividing the data set into train and test sets
+idx <- sample(150,100)
+tr <- iris[idx,]
+ts <- iris[-idx,]
+ 
+## Learn a tree with the full train set and test it
+stdTree <- rpartXse(Species~ .,tr,se=0.5)
+table(predict(stdTree,ts,type='class'),ts$Species)
+ 
+## Now let us create another training set with most of the target
+## variable values unknown
+trSelfT <- tr
+nas <- sample(100,70)
+trSelfT[nas,'Species'] <- NA
+ 
+## Learn a tree using only the labelled cases and test it
+baseTree <- rpartXse(Species~ .,trSelfT[-nas,],se=0.5)
+table(predict(baseTree,ts,type='class'),ts$Species)
+ 
+## The user-defined function that will be used in the self-training process
+f <- function(m,d) { 
+      l <- predict(m,d,type='class')
+      c <- apply(predict(m,d),1,max)
+      data.frame(cl=l,p=c)
+}
+ 
+## Self train the same model using the semi-superside data and test the
+## resulting model
+treeSelfT <- SelfTrain(Species~ .,trSelfT,learner('rpartXse',list(se=0.5)),'f')
+table(predict(treeSelfT,ts,type='class'),ts$Species)
+```
+
+
+```{r,message=FALSE,include=FALSE}
+library(DMwR)
+library(e1071)
+data(iris)
+idx <- sample(150,100)
+tr <- iris[idx,]
+ts <- iris[-idx,]
+nb <- naiveBayes(Species ~ .,tr)
+table(predict(nb,ts),ts$Species)
+trST <- tr
+nas <- sample(100,90)
+trST[nas,'Species'] <- NA
+
+```
+L'apprentissage supervisé donne le résultat suivant:
+```{r}
+nbSTbase <- naiveBayes(Species ~ .,trST[-nas,])
+table(predict(nbSTbase,ts),ts$Species)
+```
+
+
+La fonction _wrapper_ qui va nous permettre d'utiliser le classifieur "NaîveBayes" pour l'auto-apprentissage:
+```{r}
+func <- function(m,d) {
+  p <- predict(m,d,type='raw')
+  data.frame(cl=colnames(p)[apply(p,1,which.max)],p=apply(p,1,max))
+}
+
+```
+
+Auto-apprentissage est résultat:
+```{r}
+
+nbST <- SelfTrain(Species ~ .,trST,learner('naiveBayes',list()),'func')
+table(predict(nbST,ts),ts$Species)
+```
+
+#Méthodes basées sur les Graphes:
+
+###Description:
+
+Ces méthodes d'apprentissage semi-supervisées considèrent un graphe $G = {V,E}$ où $V$ sommets sont les instances d'apprentissage labellisées et non labellisées, et $E$ les droites non dirigées reliant les instances $i, j$ avec le poids $w_ij^{[16][17][18]}$. En général, $w_ij$ reflète la proximité entre $x_i, x_j$. Par exemple, le poids peut être défini par une fonction poids Gaussienne $w_ij = exp(\frac{-|| x_i - x_j ||^2}{\sigma^2} )$. Un autre exemple serait la fonction poids kNN qui définie $w_ij =1$ si $x_i$ se trouve parmi les k-plus proche voisins de $x_j$, et $w_ij = 0$ sinon. D'autres fonctions poids utilisées sont $\epsilon$-radius voisins, b-matching, et des combinaisons de toutes les fonctions citées plus haut. 
+
+Un $w_ij$ très grand implique plus de chance que les prédictions $f(x_i)$ et $f(x_j)$ sont les mêmes. Ceci peut être formulé par l'énergie du graphe d'une fonction $f$ : 
+
+$$ \sum_{i,j=1}^{l+u} w_ij(f(x_i) -f(x_j))^2  $$
+
+L'énérgie du graphe implique un ordre ascendant implicite de $f \in F$. Les fonctions les mieux classées sont celles les plus lisses sur le graphe. 
+Pour trouver le $f$ qui corresponds très bien aux données labellisées et qui est bien classé (càd être *lisse* sur le graphe), on minimise l'objectif suivant:
+
+$$ \operatorname*{arg\,min}_f \frac{1}{l} \sum_{i=1}^{l} c(f(x_i),y_i)+\lambda_1||f^2|| + \lambda_2 \sum_{i,j=1}^{l+u} w_ij(f(x_i) -f(x_j))^2$$
+
+avec $c(f(x),y)$ une fonction d’erreur convexe comme l’erreur quadratique. c'est un problème d'optimisation convexe pour lequel différents solveurs existent.
+
+###Avantages:
+
+- Base mathématique claire
+- Bonne Performance quand le graphe est adéquoit au cas
+
+###Inconvénients:
+
+- Mauvaise performance si le graphe est mauvais.
+- Sensible à la structure du graphe et aux poids des arrêtes.
+
+###Exemple avec le package "_spa_":
+Le package R "_spa_"" contient des fonctions qui permettent d'appliquer ces méthodes et d'évaluer des fonction du type $Y = f(G)$ ou $Y = X \beta + f(G)$ (semi-parametric graph based Method $^{[19]}$) où $\beta$ est un vecteur de coefficients , $Y$ la réponse estimée et $f$ une fonction définie sur les sommets du graphe $G$. Le processus d'utilisation du packet est en 3 étapes:
+\begin{enumerate}
+  \item Génération du graphe.
+  \item Génération de l'objet spa.
+  \item Après Apprentissage. 
+\end{enumerate}
+
+Pour cette exemple on va utilisé des données simulées des deux lunes du package _spa_
+```{r, message=FALSE}
+library("spa")
+set.seed(100)
+dat=spa.sim(type="moon") 
+```
+
+####Génération du graphe :
+La première étape est de choisir une métrique adéquate sur les données (distance Euclidienne par exemple). Il faut construire une matrice de la sorte à partir des données labellisées et non labellisées:
+
+$$A = 
+\begin{pmatrix}
+A_{LL} & A_{LU} \\
+A_{UL} & A_{UU}
+\end{pmatrix}
+$$
+
+Avec $A_{LL}$ les arrêtes labellisées-labellisées, $A_{LU} = A_{UL}\,^T$ les arrêtes labellisées-non labellisées et $A_{UU}$ les arrêtes non labellisées-non labéllisées.
+```{r}
+
+L=which(!is.na(dat$y))
+U=which(is.na(dat$y))
+Dij=as.matrix(daisy(dat[,-1]))
+
+```
+Pour des matrices $A$ de très grande taille, se restreindre au connectivités locales avec un kNN ou un graphe $\epsilon$ peut améliorer la performance de cette technique d'une façon significative $^{[20]}$.  
+Cependant, l'objet kNN n'est pas une distance métrique, et souvent on doit la convertir à une vraie métrique avec l'algorithme de Floyd (l'inégalité triangulaire n'est pas applicable à un graphe kNN).
+
+```{r}
+DNN <- knnGraph(Dij, dist = TRUE, k = 5)
+DFL <- floyd(DNN)
+```
+
+####Génération de l’objet _spa_
+Le paramètre dist = TRUE indique que les poids de l'objet sont des distances.
+Après l'obtention la représentation adéquate du graphe pour la fonction _spa_, on génère l'objet _spa_ à proprement dit.Pour $Y$, mettre $Y_U = NA$ et s'assurer que $X$ est un data.frame ou une matrice.
+
+
+```{r}
+gsup<-spa(dat$y[L],graph=Dij[L,L],control=spa.control(gcv="lGCV"))
+gsemi<-spa(dat$y,graph=Dij,control=spa.control(gcv="aGCV"))
+
+```
+
+####Après Apprentissage
+prédiction _inductive_ pour observation $x = (0,0)$ avec spa.predict:
+```{r, warning=FALSE}
+newobs <- c(0, 0)
+newnode <- as.matrix(sqrt(apply(cbind(dat$x1 - newobs[1],dat$x2 - newobs[2])^2, 1, sum)))
+round(predict(gsup, gnew = newnode), 3)
+```
+
+La prédiction _transductive_ (mise à jour du modèle) est plus complexe. Dans ce cas les observations ajoutent de l'information que le classificateur doit incorporer à nouveau. L'objet est changé après apprentissage, ce qui fait de ce genre de prédiction une vrai mise à jour du modèle.
+```{r}
+dat <- rbind(dat, spa.sim(100, 0))
+gsemi <- update(gsemi, ynew = dat$y, , as.matrix(daisy(dat[, -1])),trans.update = TRUE)
+```
+
+```{r, echo = FALSE,fig.height=4,fig.width=5,fig.align="center"}
+##Use predict to define a grid for contour plot
+gsize=100
+a1<-seq(min(dat$x1),max(dat$x1),length=gsize)
+a2<-seq(min(dat$x2),max(dat$x2),length=gsize)
+
+zsup=matrix(0,gsize,gsize)
+for(i in 1:gsize){
+  val=sqrt(t(sapply(1:gsize,function(j)(dat$x1[L]-a1[i])^2+(dat$x2[L]-a2[j])^2)))
+  zsup[i,]=predict(gsup,gnew=val)  ##supervised prediction with k-smoother
+}
+zsemi=matrix(0,gsize,gsize)
+for(i in 1:gsize){
+  val=sqrt(t(sapply(1:gsize,function(j)(dat$x1-a1[i])^2+(dat$x2-a2[j])^2)))
+  zsemi[i,]=predict(gsemi,gnew=val) ##inductive prediction with transductive rule
+}
+
+## Plot results
+gr=c(2,4)
+plot(0,1,cex=1.5,xlab="x1",ylab="x2",type="n",
+     xlim=c(-0.5,6.5),ylim=c(-6.5,3.5))
+gr=gray(c(.7,.9))
+points(dat$x1,dat$x2,pch=16,col=8,cex=1)
+points(dat$x1[L],dat$x2[L],pch=16,col=gr[dat$y[L]+1],cex=2)
+points(dat$x1[L],dat$x2[L],pch=1,col=1,cex=2)
+contour(a1,a2,zsup, levels=.5,add=TRUE,lty=1,method="edge",drawlabels=FALSE,lwd=2,col=gray(0.6))
+contour(a1,a2,zsemi,levels=.5,add=TRUE,lty=1,method="edge",drawlabels=FALSE,lwd=2,col=1)
+legend(4.25,par()$usr[4],c("Semi-supervisé","Supervisé"),cex=1,fill=gray(c(0,0.6)),bg="white")
+
+title(switch(attr(dat,"type"),moon="Deux Lunes Données Simulées",supervised="Supervised Border Simulated set"))
+title("\n\nPrédiction Inductive avec un Modèle Transductif",cex.main=1.1)
+box()
+```
+
+#Machine à Vecteurs Support Semi-Supervisée:
+
+###Description:
+
+Ces méthodes sont aussi appelées Transductive support vector machines (TSVMs) construisent une connexion entre $p(x)$ et la frontière de décision en évitant de mettre la frontière dans des régions de forte densité. TSVM est un prolongement des Machines à vecteurs support avec les données non labellisées. Dans une SVM standard seulement les données labellisées sont utilisées, et le but est de trouver une frontière linéaire qui maximise la marge entre les classes de données dans un Espace de Hilbert à noyau reproduisant. Pour TSVM les données non labellisées sont aussi utilisées. L'objectif est de trouver une labellisation pour les données sans classe, de telle façon que la frontière linéaire maximise la marge entre les données labellisées originales et les données (nouvellement labellisées) non labellisées. Intuitivement, les données non labellisées poussent la frontière linaire loin des régions à haute densité.
+
+TSVM peut être vu comme une SVM avec un terme de régularisation sur les données non-labellisées. Le problème d'optimisation est:
+
+$$\min_f \sum_{i=1}^{l} max(1 - y_i f(x_i),0)_+ + \lambda_1 ||h||^2 + \lambda_2 \sum_{i=l+1}^{n} max(1 - |f(x_i)|,0)_+$$
+
+Le dernier terme vient de l'attribution du label $sign(f(x))$ au point non-labellisé $x$. La marge sur le point non labellisé devient donc de $sign(f(x))f(x) = |f(x)|$. La fonction coût $max(1-|f(x_i)|,0)$ a une forme non-convexe de chapeau comme montrer dans la figure ce qui est l'origine de la difficulté du problème d'optimisation.
+
+```{r, echo=FALSE, fig.height=3,fig.width=5,fig.align="center"}
+hatfunc <- function(x){
+  y <- rep(0,length(x))
+  for(i in 1:length(y)){
+    if((1-abs(x[i]))>0){
+      y[i] <- 1-abs(x[i]) 
+    }
+  }
+  y
+}
+curve(hatfunc, -2, 2, xname = "t",
+      sub="la fonction coût pour TSVM  max(1 - |f (xi )|,0)",
+      col="blue")
+
+```
+
+Cependant trouver la solution TSVM exacte reste un problème NP-complet. La plupart des efforts des recherches se sont concentrés sur des algorithmes d'approximation efficaces. L'implémentation de SVM-light est le premier logiciel globalement utilisé. Pour la suite, c'est la librairie "_svmlin_"$^{[21]}$ qui implémente deux algorithmes TSVM$^{[22]}$ : 
+
+- Linear Transductive L2-SVMs  with multiple switchings
+- Deterministic Annealing (DA) for Semi-supervised Linear L2-SVMs
+
+###Avantages:
+
+- Base mathématique claire.
+- Applicable quand la méthode Machine à Vecteurs Support est applicable.
+
+###Inconvénients:
+
+- Optimisation difficile.
+- Peut être coincer dans un minima locale.
+- Potentiellement moins de gains, car hypothèse plus modeste que les méthodes génératives ou celles basées sur les graphes.
+
+#Cas Pratique:
+
+Pour tester les méthodes décrites plus haut, nous allons les appliquer au jeu de données réel proposé par Homesite Insurance sur le site [Kaggle.com](http://www.kaggle.com/c/homesite-quote-conversion). L'entreprise proposant le challenge défit les internautes de prédire quels clients sont susceptibles d'acheter un plan d'assurance pour leurs maisons à partir de données anonymes diverses.
+
+##Exploration des données:
+Le dataset contient 300 000 lignes et 290 colonnes. Les variables peuvent être regroupées en 5 grandes catégories : données temporelles, données personnelles et géographiques des clients, données sur les habitations et données de ventes. Pour la fonction binaire objectif il y a ~18% dans la première classe (client qui ont acheté l'assurance) et ~82% dans la deuxième classe (qui n'ont pas acheté). A noter que 9% des variables sont qualitatives.
+
+
+La distribution des clients convertis selon le temps
+```{r, message=FALSE, echo=FALSE, warning=FALSE, fig.height=6,fig.width=5,fig.align="center"}
+#Load and preparation of data -------------------------------------------------
+library(data.table)
+train <- fread("/home/yassine/EMSE 2015-2016/Projet Industruel/Homesite Quote Conversion/data/subtrain20")
+train <- train[,"V1":= NULL, with = FALSE]
+
+
+#Checking for constant columns & removing them from the training 
+col_ct <- sapply(train, function(x) length(unique(x)))
+colCnt.df <- data.frame(colName = names(train), colCount = col_ct)
+train <- train[, names(train)[which(col_ct == 1)] := NULL, with = FALSE]
+
+#Removing colums with NA
+train <- train[, colnames(train)[which(colSums(is.na(train)) > 0)] := NULL, with = FALSE]
+
+#Unabashedly separating the numeric & non-numeric columns
+train_num <- train[,names(train)[which(sapply(train, is.numeric))], with = FALSE]
+train_char <- train[,names(train)[which(sapply(train, is.character))], with = FALSE]
+
+
+train_num$Field10 <- train$Field10
+train_num$Field10 <- gsub(",","",train_num$Field10)
+train_char$Field10 <- NULL
+
+#converting the Quote date column into Dates and then extracting the month, date, day & year
+train_char$Original_Quote_Date <- as.Date(train_char$Original_Quote_Date)
+train_char$OQD_Date <- format(train_char$Original_Quote_Date, "%d")
+train_char$OQD_Month <- format(train_char$Original_Quote_Date, "%m")
+train_char$OQD_Year <- format(train_char$Original_Quote_Date, "%Y")
+train_char$OQD_Day <- weekdays(train_char$Original_Quote_Date)
+
+#Converting the characters to factors
+train_char <- train_char[,(names(train_char)) := lapply(.SD, as.factor), .SDcols =names(train_char)]
+
+train <- cbind(train_num,train_char)
+
+
+#Checking for relationship between date variables & quote conversion-----------
+train_char$QuoteConversion_Flag <- train$QuoteConversion_Flag
+library(dplyr)
+
+temp <- train_char %>% group_by(OQD_Year) %>% summarise(Conversion = sum(QuoteConversion_Flag), countR = n()) %>% arrange(-Conversion)
+temp$Conversion = (temp$Conversion/sum(temp$Conversion))
+temp$countR = (temp$countR/sum(temp$countR))
+par(mar=c(2,2,2,2), mfrow=c(4,2))
+barplot(temp$countR, names.arg = temp$OQD_Year, main = "Count-Year")
+barplot(temp$Conversion, names.arg = temp$OQD_Year, main = "Conversions-Year")
+
+temp <- train_char %>% group_by(OQD_Month) %>% summarise(Conversion = sum(QuoteConversion_Flag), countR = n()) %>% arrange(-Conversion)
+temp$Conversion = (temp$Conversion/sum(temp$Conversion))
+temp$countR = (temp$countR/sum(temp$countR))
+barplot(temp$countR, names.arg = temp$OQD_Month, main = "Count-Month")
+barplot(temp$Conversion, names.arg = temp$OQD_Month, main = "Conversions-Month")
+
+temp <- train_char %>% group_by(OQD_Day) %>% summarise(Conversion = sum(QuoteConversion_Flag), countR = n())  %>% arrange(-Conversion)
+temp$Conversion = (temp$Conversion/sum(temp$Conversion))
+temp$countR = (temp$countR/sum(temp$countR))
+barplot(temp$countR, names.arg = temp$OQD_Day, main = "Count-Weekday")
+barplot(temp$Conversion, names.arg = temp$OQD_Day, main = "Conversions-Weekday")
+
+temp <- train_char %>% group_by(OQD_Date) %>% summarise(Conversion = sum(QuoteConversion_Flag), countR = n())  %>% arrange(-Conversion)
+temp$Conversion = (temp$Conversion/sum(temp$Conversion))
+temp$countR = (temp$countR/sum(temp$countR))
+barplot(temp$countR, names.arg = temp$OQD_Date, main = "Count-Date")
+barplot(temp$Conversion, names.arg = temp$OQD_Date, main = "Conversions-Date")
+```
+
+La corrélation avec les données catégoriques
+```{r, message=FALSE, echo=FALSE, warning=FALSE, fig.height=5,fig.width=7,fig.align="center"}
+#Now checking the distribution of conversions in the other character columns
+#for aesthetics selecting only the columns with less than 10 unique levels
+col_ct <- sapply(train_char, function(x) length(unique(x)))
+selectedCols <- names(train_char)[which(col_ct<10)]
+temp = train_char[,(selectedCols), with=FALSE]
+temp$QuoteConversion_Flag = train_char$QuoteConversion_Flag
+selectedCols = selectedCols[-c(21,22)] #removing the date fields
+
+
+library(tidyr)
+tidyData <- temp %>% gather(key, value, Field6:GeographicField64) %>% group_by(key, value) %>% 
+  summarise(Conversion = sum(QuoteConversion_Flag)) %>% arrange(-Conversion)
+
+library(ggplot2)
+plotVar <- ggplot(tidyData, aes(value, Conversion, col = key)) + geom_bar(stat="identity")
+plotVar + facet_grid(key~.)
+
+```
+
+Les corrélations de Spearman avec 50 variables numériques tirées au hasard
+```{r, message=FALSE, echo=FALSE, warning=FALSE, fig.height=4,fig.width=5,fig.align="center"}
+#Calculating the Spearman correlation for the numeric variables
+#Selecting only complete cases, so as to avoid errors during correlation calculations
+temp = train_num[complete.cases(train_num),]
+
+#Converting the columns to numeric ::: just in case
+temp <- temp[,(names(temp)) := lapply(.SD, as.numeric), .SDcols =names(temp)]
+
+#Selecting 50 columns randomly (again for aesthetic reasons :) )
+selectedCols <- sample(names(temp), 50)
+temp2 <- temp[, (selectedCols), with=FALSE]
+
+#Calculate correlation coeeficients
+descrCor_spear <- cor(scale(temp2,center=TRUE,scale=TRUE), method="spearman")
+
+#Not sure if this is the best method, but here I am simply converting NAs in the data to 0
+descrCor_spear[is.na(descrCor_spear)] = 0
+
+library(corrplot)
+par( mfrow=c(1,1))
+corrplot(descrCor_spear, order = "hclust", type="lower", diag=FALSE, tl.cex=0.6, 
+         mar = c(0.4,0.4,0.4,0.4),
+         main="Les corrélations de Spearman avec 50 variables numériques tirées au hasard")
+```
+
+
+Après prétraitement des données on a gardé 100 variables seulement (en enlevant celles qui sont constantes, qui comportent plusieurs valeurs manquantes et d'autres aléatoirement choisies parmi les catégories citées plus haut). Le nombre de lignes aussi a été réduit pour pouvoir comparer les méthodes dans un temps raisonnable.
+
+##Expérience:
+
+- Échantillonnage aléatoire 10%  de l'ensemble qu'on considère labellisées. les 90% lignes restantes sont considérées comme non labellisées.
+- En premier lieu, un modèle est entraîné en utilisant seulement les 10%  (supervisé).
+- En second lieu, un modèle est entraîné en utilisant les 10% labellisées + 90% non labellisées (semi-supervisé).
+- Les deux modèles sont utilisés pour prédire les labels des 90%. Les prédictions sont comparées avec les vrais labels et une erreur de mal classification est calculée.
+- Les étapes au dessus sont répétées 40 fois avec différents échantillons de 10% - 90% et c'est l'erreur moyenne qui est retenue.
+
+pour chaque méthode on répète ces étapes pour 20%, 30%, 40% et 50% de données labellisés pour savoir à partir de quelle proportion les données non-labellisées n'apportent plus assez d'informations.
+
+##Résultats:
+
+```{r,echo = FALSE}
+par(mfrow=c(1,1))
+s.up <- read.csv(paste("/home/yassine/s-up"))
+s.up <- subset(s.up, select = -1)
+s.up <- as.matrix(s.up)
+
+ss.up <- read.csv(paste("/home/yassine/ss-up"))
+ss.up <- subset(ss.up, select = -1)
+ss.up <- as.matrix(ss.up)
+
+plot(1:5,apply(s.up,1,mean),xaxt = "n",type="l",col="red",ylim=c(0.1,0.6)
+     ,ylab="% des mal classifiés",xlab="% des non labellisés",
+     main="Méthode Génératives")
+axis(1, at=1:5, labels=c("10%","20%","30%","40%","50%"))
+lines(apply(ss.up,1,mean),type="l",col="blue")
+legend("topright",c("Semi-Supervisée","Supervisé"),lty=c(1,1), lwd=c(2.5,2.5),col=c("blue","red")) 
+
+s.st <- read.csv(paste("/home/yassine/s-st"))
+s.st <- subset(s.st, select = -1)
+s.st <- as.matrix(s.st)
+
+ss.st <- read.csv(paste("/home/yassine/ss-st"))
+ss.st <- subset(ss.st, select = -1)
+ss.st <- as.matrix(ss.st)
+
+plot(1:5,apply(s.st,1,mean),xaxt = "n",type="l",col="red",ylim=c(0.1,0.6)
+     ,ylab="% des mal classifiés",xlab="% des non labellisés",
+     main="Méthode d'Auto-apprentissage")
+axis(1, at=1:5, labels=c("10%","20%","30%","40%","50%"))
+lines(apply(ss.st,1,mean),type="l",col="blue")
+legend("topright",c("Semi-Supervisé","Supervisé"),lty=c(1,1), lwd=c(2.5,2.5),col=c("blue","red")) 
+
+s.grph <- read.csv(paste("/home/yassine/s-grph"))
+s.grph <- subset(s.grph, select = -1)
+s.grph <- as.matrix(s.grph)
+
+ss.grph <- read.csv(paste("/home/yassine/ss-grph"))
+ss.grph <- subset(ss.grph, select = -1)
+ss.grph <- as.matrix(ss.grph)
+
+plot(1:5,apply(s.grph,1,mean),xaxt = "n",type="l",col="red",ylim=c(0.1,0.6),
+     ylab="% des mal classifiés",xlab="% des non labellisés",
+     main="Méthode basé sur les Graphe")
+axis(1, at=1:5, labels=c("10%","20%","30%","40%","50%"))
+lines(apply(ss.grph,1,mean),type="l",col="blue")
+legend("bottomright",c("Semi-Supervisée","Supervisé"),lty=c(1,1), lwd=c(2.5,2.5),col=c("blue","red")) 
+
+
+s.svm <- read.csv(paste("/home/yassine/s-svm"))
+s.svm <- subset(s.svm, select = -1)
+s.svm <- as.matrix(s.svm)
+
+ss.svm <- read.csv(paste("/home/yassine/ss-svm"))
+ss.svm <- subset(ss.svm, select = -1)
+ss.svm <- as.matrix(ss.svm)
+
+
+plot(1:5,apply(s.svm,1,mean),xaxt = "n",type="l",col="red",ylim=c(0.1,0.3),
+     ylab="% des mal classifiés",xlab="% des non labellisés",
+     main="Méthode TSVM")
+axis(1, at=1:5, labels=c("10%","20%","30%","40%","50%"))
+lines(apply(ss.svm,1,mean),type="l",col="blue")
+legend("topright",c("Semi-Supervisé","Supervisé"),lty=c(1,1), lwd=c(2.5,2.5),col=c("blue","red")) 
+
+```
+
+Le fait que l'apprentissage supervisé est meilleure que celui semi-supervisé peut être expliquer par le fait que l'hypothèse sur laquelle repose les méthodes génératives (les points qui sont dans le même cluster sont de la même classe) n'est pas remplie pour cet ensemble de données. Cette explication est d'autant plus plausible puisque l'on remarque que l'erreur augmente pour les deux méthodes à partir de l'utilisation de plus de 30% des données pour faire du supervisé. Ce qui veut dire que notre hypothèse que les classes sont des distributions gaussiennes distinctes dans l'espace des variables est fausse (hypothèque qui est utilisé pour les deux types d'apprentissage).
+
+```{r,echo = FALSE}
+s.st <- read.csv(paste("/home/yassine/s-st"))
+s.st <- subset(s.st, select = -1)
+s.st <- as.matrix(s.st)
+
+ss.st <- read.csv(paste("/home/yassine/ss-st"))
+ss.st <- subset(ss.st, select = -1)
+ss.st <- as.matrix(ss.st)
+
+plot(1:5,apply(s.st,1,mean),xaxt = "n",type="l",col="red",ylim=c(0.1,0.6)
+     ,ylab="% des mal classifiés",xlab="% des non labellisés",
+     main="Méthode d'Auto-apprentissage")
+axis(1, at=1:5, labels=c("10%","20%","30%","40%","50%"))
+lines(apply(ss.st,1,mean),type="l",col="blue")
+legend("topright",c("Semi-Supervisé","Supervisé"),lty=c(1,1), lwd=c(2.5,2.5),col=c("blue","red")) 
+```
+
+Dans le cas de l'Auto-apprentissage avec le classifieur NaîveBayes, l'utilisation des données non labellisées nous a permis de réduire l'erreur des points mal classifiés. La performance de cette méthode peut être nettement amélioré en utilisant un classificateur plus complexe et qui a des hypothèses moins fortes par rapport au classificateur utilisé ( l'indépendance des variables).
+
+```{r,echo = FALSE}
+s.grph <- read.csv(paste("/home/yassine/s-grph"))
+s.grph <- subset(s.grph, select = -1)
+s.grph <- as.matrix(s.grph)
+
+ss.grph <- read.csv(paste("/home/yassine/ss-grph"))
+ss.grph <- subset(ss.grph, select = -1)
+ss.grph <- as.matrix(ss.grph)
+
+plot(1:5,apply(s.grph,1,mean),xaxt = "n",type="l",col="red",ylim=c(0.1,0.6),
+     ylab="% des mal classifiés",xlab="% des non labellisés",
+     main="Méthode basé sur les Graphe")
+axis(1, at=1:5, labels=c("10%","20%","30%","40%","50%"))
+lines(apply(ss.grph,1,mean),type="l",col="blue")
+legend("bottomright",c("Semi-Supervisée","Supervisé"),lty=c(1,1), lwd=c(2.5,2.5),col=c("blue","red")) 
+```
+
+Le fait que l'apprentissage semi-supervisé n'améliore pas l'erreur mais l'amplifie suggère encore une fois que les classes sur nos données ne sont pas groupées spécialement dans l'espace des variables. En effet les méthodes basées sur les Graphes se basent sur les même hypothèses que les méthodes Génératives (les sommets sont de la même classe si le poids de l'arrête qui les relie est élevé). Le fait qu'on utilise la distance Euclidienne pour les poids (génération d'un mauvais graphe) peut expliquer aussi l'erreur qui augmente.
+
+```{r,echo = FALSE}
+s.svm <- read.csv(paste("/home/yassine/s-svm"))
+s.svm <- subset(s.svm, select = -1)
+s.svm <- as.matrix(s.svm)
+
+ss.svm <- read.csv(paste("/home/yassine/ss-svm"))
+ss.svm <- subset(ss.svm, select = -1)
+ss.svm <- as.matrix(ss.svm)
+
+
+plot(1:5,apply(s.svm,1,mean),xaxt = "n",type="l",col="red",ylim=c(0.1,0.3),
+     ylab="% des mal classifiés",xlab="% des non labellisés",
+     main="Méthode TSVM")
+axis(1, at=1:5, labels=c("10%","20%","30%","40%","50%"))
+lines(apply(ss.svm,1,mean),type="l",col="blue")
+legend("topright",c("Semi-Supervisé","Supervisé"),lty=c(1,1), lwd=c(2.5,2.5),col=c("blue","red")) 
+
+```
+
+Puisque la méthode TSVM ne se base pas sur _l'hypothèse de clustering_ et qu'elle aille seulement chercher la frontière entre les classes elle est meilleure mieux qu'une SVM standard. A noter que cela n'est valable que quand on dispose que de peu de données non labellisé et que aussi le gain n'est pas énorme (pas d'hypothèse forte).
+
+
+*Un récapitulatif des résultats*:
+
+```{r table2, echo=FALSE, message=FALSE, warnings=FALSE, results='asis'}
+
+tabl <- paste0("
+|  % des U   |   Mclust   |  Upclass   | NaîveBayes | Self-Train |  Graph L   |  Graph U   |    SVM     |   TSVM     | 
+|------------|:----------:|-----------:|-----------:|-----------:|-----------:|-----------:|-----------:|-----------:|
+|    10%     |    ",round(mean(s.up[1,]),2),"    |    ",round(mean(ss.up[1,]),2),"    |     ",round(mean(s.st[1,]),2),"   |    ",round(mean(ss.st[1,]),2),"     |    ",round(mean(s.grph[1,]),2),"     |    ",round(mean(ss.grph[1,]),2),"    |    ",round(mean(s.svm[1,]),2),"    |    ",round(mean(ss.svm[1,]),2),"    |
+|    20%     |    ",round(mean(s.up[2,]),2),"    |    ",round(mean(ss.up[2,]),2),"    |     ",round(mean(s.st[2,]),2),"    |    ",round(mean(ss.st[2,]),2),"    |    ",round(mean(s.grph[2,]),2),"    |    ",round(mean(ss.grph[2,]),2),"    |    ",round(mean(s.svm[2,]),2),"     |    ",round(mean(ss.svm[2,]),2),"     |
+|    30%     |    ",round(mean(s.up[3,]),2),"    |    ",round(mean(ss.up[3,]),2),"    |     ",round(mean(s.st[3,]),2),"   |    ",round(mean(ss.st[3,]),2),"    |    ",round(mean(s.grph[3,]),2),"    |    ",round(mean(ss.grph[3,]),2),"    |    ",round(mean(s.svm[3,]),2),"    |    ",round(mean(ss.svm[3,]),2),"    |
+|    40%     |    ",round(mean(s.up[4,]),2),"    |    ",round(mean(ss.up[4,]),2),"    |     ",round(mean(s.st[4,]),2),"   |    ",round(mean(ss.st[4,]),2),"     |    ",round(mean(s.grph[4,]),2),"    |    ",round(mean(ss.grph[4,]),2),"    |    ",round(mean(s.svm[4,]),2),"    |    ",round(mean(ss.svm[4,]),2),"    |
+|    50%     |    ",round(mean(s.up[5,]),2),"    |    ",round(mean(ss.up[5,]),2),"    |     ",round(mean(s.st[5,]),2),"   |    ",round(mean(ss.st[5,]),2),"     |    ",round(mean(s.grph[5,]),2),"    |    ",round(mean(ss.grph[5,]),2),"    |    ",round(mean(s.svm[5,]),2),"    |    ",round(mean(ss.svm[5,]),2),"    |
+")
+cat(tabl) # output the table in a format good for HTML/PDF/docx conversion
+```
+
+#Conclusion et Directions futures:
+
+Pour capitaliser sur le cas pratique et l'implémentation des différents algorithmes testés on dresse le tableau suivant qui peut servir de repère pour le choix d'un algorithme ou un autre pour des cas différents (à noter que ces observations restent à confirmer en utilisant les algorithmes sur d'autres types d'ensembe de données pour voir comment ils se comportent). 
+
+Une note sur 3 est donnée à titre indicatif pour chaque élément à considérer quand on choisit un algorithme (précision, dimension , temps de calcul).  
+
+| Algorithme | Précision | dimension | Temps |                           Notes                                 |
+|:----------:|:---------:|:---------:|:-----:|:---------------------------------------------------------------:|
+|Generative  |     *     |     **    |   **  | Précision dépend beaucoup  de l'hypothèse du _clustering_       |
+|Self-Train  |    ***    |     **    |   *   | La précision dépend beaucoup de l'efficacité du classificateur  |
+|            |           |           |       | utilisé. Faire attention à l'auto-renforcement de l'erreur.     |
+|Graph-based |     *     |     *     |   *   | Précision dépend beaucoup de l'hypothèse                        |
+|            |           |           |       | du _clustering_ et  de la qualité du graphe                     |
+|TSVM        |     **    |    ***    |  ***  | Adapté pour beaucoup de variables. La proportion des            |
+|            |           |           |       | 2 classes si connue réduit les temps de calculs.                |
+
+Il ya plusieurs directions pour améliorer encore la valeur de l'apprentissage semi-supervisé. Premièrement, nous avons besoin de garanties que ce dernier sera plus performant que l'apprentissage supervisé. Actuellement, l'utilisateur doit choisir manuellement une méthode particulière d'apprentissage semi-supervisé, dont les paramètres sont souvent définies manuellement. Parfois, un mauvais choix qui ne correspond pas à la tâche (par exemple, la modélisation de chaque classe avec une gaussienne lorsque les données ne suive pas de cette distribution) peut faire que les résultats du semi-supervisé soient pire que l'apprentissage supervisé. Deuxièmement, nous avons besoin de méthodes qui bénéficient des données non labellisées lorsque $l$, la taille des données labellisées, est grande. Il a été largement observé que le gain avec l'apprentissage supervisé est plus grand lorsque $l$ est petite, mais diminue au fur et à mesure que $l$ augmente. Troisièmement, nous avons besoin de bonnes façons de combiner l'apprentissage semi-supervisé et l'apprentissage actif. Dans les systèmes d'apprentissage naturels tels que les humains, on observe régulièrement des sollicitations _non-labellisés_, ce qui conduit naturellement à se poser des questions. Et enfin, nous avons besoin de méthodes qui peut efficacement traiter les données non-labellisées en grande dimension, en particulier dans un environnement d'apprentissage en ligne.
+
+
+# Références:
+1 : Caetano S, Ustun B, Hennessy S, Smeyers-Verbeke J, Melssen W, Downey G, Buydens L, Vander Heyden Y (2007). “Geographical Classification of Olive Oils by the Application of CART and SVM to their FT-IR.” Journal of Chemometrics, 21(7-9), 324–334.
+
+2 :Pouteau R, Meyer JY, Taputuarai R, Stoll B (2012). “Support Vector Machines to Map Rare and Endangered Native Plants in Pacific Islands Forests.” Ecological Informatics, 9, 37–46.
+
+3 : Fan Y, Murphy TB, Byrne J, Brennan L, Fitzpatrick J, Watson RWG (2011). “Applying
+Random Forests to Identify Biomarker Panels in Serum 2D-DIGE Data for the Detection and Staging of Prostate Cancer.” Journal of Proteome Research, 10(3), 1361–1373.
+
+4 : Ripley BD (1996). Pattern Recognition and Neural Networks. Cambridge University Press.
+
+5 : McLachlan G (1992). Discriminant Analysis and Statistical Pattern Recognition. Wiley, New York.
+
+6 : Chapelle O, Scholkopf B, Zien A (eds.) (2006). Semi-Supervised Learning. MIT Press, Cambridge, MA.
+
+7 : Dean N, Murphy TB, Downey G (2006). “Using Unlabelled Data to Update Classification Rules with Applications in Food Authenticity Studies.” Journal of the Royal Statistical Society. Series C. Applied Statistics, 55(1), 1–14
+
+8 : Wang Y, Chen S, Zhou ZH (2012). “New Semi-Supervised Classification Method Based
+on Modified Cluster Assumption.” IEEE Transactions on Neural Networks and Learning
+Systems, 23(5), 689–702
+
+9 : Zhu X, Goldberg AB (2009). “Introduction to Semi-Supervised Learning.” Synthesis Lectures on Artificial Intelligence and Machine Learning, 3(1), 1–130.
+
+10 : Cozman, F. and Cohen, I. Risks of semi-supervised learning: how unlabeled data can degrade performance of generative classifiers. In: Chapelle et al. (2006).
+
+11 : Zhu, Xiaojin. Semi-Supervised Learning University of Wisconsin-Madison.
+
+12 : M. Belkin, P. Niyogi (2004). "Semi-supervised Learning on Riemannian Manifolds". Machine Learning 56 (Special Issue on Clustering): 209–239.
+
+13 : Dempster A, Laird N, Rubin D (1997). “Maximum Likelihood from Incomplete Data with
+the EM Algorithm (with discussion).” Journal of the Royal Statistical Society, Series B,39, 1.
+
+14 : Celeux G, Diebolt J (1985). “The SEM Algorithm: A probabilistic teacher algorithm derived from the EM algorithm for the mixture problem.” Computational Statistics Quarterly, 2,73–82.
+
+15 : Celeux G, Govaert G (1992). “A Classification EM Algorithm for Clustering and Two Stochas-tic Versions.” Computational Statistics and Data Analysis, 14(3), 315–332.
+1: A. Blum and S. Chawla. Learning from labeled and unlabeled data using graph mincuts. In Proc. 18th International Conf. on Machine Learning, 2001
+
+16 : X. Zhu, Z. Ghahramani, and J. Lafferty. Semi-supervised learning using Gaussian fields and harmonic functions. In The 20th International Conference on Machine Learning (ICML), 2003.
+
+17 : A. Blum and S. Chawla. Learning from labeled and unlabeled data using graph mincuts. In Proc. 18th International Conf. on Machine Learning, 2001.
+
+18 : spa: Semi-Supervised Semi-Parametric Graph-Based Estimation in R. Mark Culp West Virginia University
+
+19 : Tenenbaum J, Silva V, Langford J (2000). “A Global Geometric Framework for Nonlinear
+Dimensionality Reduction.” Science, 290(5500), 2319–2323.
+
+20 : Tenenbaum JB1, de Silva V, Langford JC. A global geometric framework for nonlinear dimensionality reduction. Science. 2000 Dec 22;290(5500):2319-23.
+
+21 :  Vikas Sindhwani and Sathiya Keerthi. Large Scale Semi-supervised Linear SVMs. Proceedings of ACM SIGIR, 2006
+
+22 : Vikas Sindhwani and Sathiya Keerthi. Newton Methods for Fast Solution of Semi-supervised Linear SVMs. Book Chapter in Large Scale Kernel Machines, MIT Press, 2006	
+
+23 : Niamh Russell Laura Cribbin Thomas Brendan Murphy. upclass: An R Package for Updating Model-Based Classification Rules
